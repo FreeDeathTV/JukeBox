@@ -1,0 +1,41 @@
+{
+  "name": "jukebox",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A local Windows 10 desktop jukebox application",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron": "concurrently \"vite dev\" \"wait-on http://localhost:5173 && electron electron/main.cjs\"",
+    "start": "electron electron/main.cjs",
+    "postinstall": "electron-rebuild"
+  },
+  "keywords": [
+    "music",
+    "jukebox",
+    "electron",
+    "sveltekit"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
+    "@sveltejs/adapter-static": "^3.0.0",
+    "@sveltejs/kit": "^2.0.0",
+    "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "concurrently": "^8.0.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0",
+    "svelte": "^4.0.0",
+    "vite": "^5.0.0",
+    "wait-on": "^7.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "bootstrap": "^5.3.0",
+    "music-metadata": "^7.0.0",
+    "node-id3": "^0.2.6"
+  }
+}
