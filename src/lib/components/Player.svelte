@@ -20,7 +20,9 @@
   } from '../stores/player.js';
   
   import { current as queueCurrent, next, previous, setIndex, queue } from '../stores/queue.js';
-  import { uiMode, toggleMode } from '../stores/ui.js';
+  import { uiMode } from '../stores/ui.js';
+  import { toggleModeWithSync } from '../utils/modeToggle.js';
+  import { AUDIO_CONFIG, TIME_CONFIG } from '../config.js';
 
   // Mode prop - 'full' or 'mini'
   export let mode = 'full';
@@ -28,9 +30,9 @@
   let audio;
   let mounted = false;
   
-  // Reactive queue subscriptions
+  // Reactive queue subscriptions - combined for performance
   $: currentQueue = $queue;
-  $: queueLength = currentQueue.length;
+  $: queueLength = $queue.length;
 
   onMount(() => {
     console.log('[Player] Component mounted, mode:', mode);
@@ -48,20 +50,33 @@
     }
   });
 
-  onDestroy(() => {
-    // Only cleanup in browser - don't destroy audio element!
-    if (browser) {
-      window.removeEventListener('player:trackEnded', handleTrackEndedCustom);
-      window.removeEventListener('player:restart', handleRestart);
-    }
-  });
+onDestroy(() => {
+  // Only cleanup in browser - don't destroy audio element!
+  if (browser) {
+    window.removeEventListener('player:trackEnded', handleTrackEndedCustom);
+    window.removeEventListener('player:restart', handleRestart);
+  }
+  
+  // Clean up player store subscriptions
+  if (typeof window !== 'undefined' && window.playerAPI) {
+    window.playerAPI.cleanup();
+  }
+});
 
   function handleTrackEndedCustom() {
     console.log('[Player] Track ended, advancing to next');
-    const nextTrack = next();
-    if (!nextTrack) {
-      pause();
-      stop();
+    try {
+      const nextTrack = next();
+      if (!nextTrack) {
+        pause();
+        stop();
+      } else {
+        // Ensure the next track starts playing automatically
+        // The player store should handle this via currentIndex subscription
+        console.log('[Player] Next track queued:', nextTrack.title);
+      }
+    } catch (err) {
+      console.error('[Player] Error handling track ended:', err);
     }
   }
 
@@ -128,14 +143,8 @@
   }
   
   function handleToggleMode() {
-    // Toggle mode in store
-    const newMode = $uiMode === 'full' ? 'mini' : 'full';
-    toggleMode();
-    
-    // Send to Electron main process to resize window
-    if (typeof window !== 'undefined' && window.uiAPI) {
-      window.uiAPI.setMode(newMode);
-    }
+    // Use shared mode toggle utility
+    toggleModeWithSync();
   }
 
   function handleDrag(event) {
@@ -153,7 +162,7 @@
   }
 
   // Sync play state with audio element - only in browser
-  $: if (browser && mounted && audio) {
+  $: if (browser && mounted && audio && $currentTrack) {
     if ($isPlaying && audio.paused) {
       audio.play().catch(err => console.error('[Player] Play error:', err));
     } else if (!$isPlaying && !audio.paused) {

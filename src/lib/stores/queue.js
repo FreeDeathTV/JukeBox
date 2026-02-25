@@ -22,10 +22,13 @@ export const current = derived(
 
 /**
  * Add a single track to the queue
- * @param {Object} track - Track to add
+ * @param {Object} track - Track object to add to queue
+ * @returns {void}
  */
 export function add(track) {
   console.log('[Queue Store] add called', track?.title);
+  if (!track || typeof track !== 'object') return;
+  
   const q = get(queue);
   
   // If queue is empty, set currentIndex to 0 to start playback
@@ -109,14 +112,13 @@ export function addToQueue(track, autoPlay = true) {
   
   queue.update(current => [...current, track]);
   
-  // If queue was empty and autoPlay is true, start playing the new track
+  // If queue was empty and autoPlay is true, dispatch event for player to handle
   if (wasEmpty && autoPlay && browser) {
     currentIndex.set(0);
-    // Dynamically import to avoid circular dependency
-    import('./player.js').then(({ setTrack, play }) => {
-      setTrack(track);
-      play();
-    });
+    // Dispatch event instead of direct import to avoid circular dependency
+    window.dispatchEvent(new CustomEvent('queue:autoPlay', { 
+      detail: { track, index: 0 } 
+    }));
   }
 }
 
@@ -177,6 +179,10 @@ export function previous() {
  */
 export function setIndex(index) {
   const q = get(queue);
+  // Add bounds checking to prevent desync
+  if (index < 0) index = 0;
+  if (index >= q.length) index = q.length - 1;
+  
   if (index >= 0 && index < q.length) {
     currentIndex.set(index);
     return q[index];
@@ -224,5 +230,18 @@ export function shuffle() {
   queue.update(current => {
     const shuffled = [...current].sort(() => Math.random() - 0.5);
     return shuffled;
+  });
+}
+
+// Listen for track ended events to auto-advance
+if (browser) {
+  window.addEventListener('player:trackEnded', () => {
+    const nextTrack = next();
+    if (!nextTrack) {
+      // No more tracks, stop playback
+      if (typeof window !== 'undefined' && window.playerAPI && window.playerAPI.pause) {
+        window.playerAPI.pause();
+      }
+    }
   });
 }

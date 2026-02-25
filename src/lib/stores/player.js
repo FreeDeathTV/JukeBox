@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { queue, currentIndex } from './queue.js';
+import { AUDIO_CONFIG, STORE_CONFIG } from '../config.js';
 
 // Current track being played
 export const currentTrack = writable(null);
@@ -26,6 +27,9 @@ let audioElement = null;
 // Track the previous index to detect changes
 let previousIndex = -1;
 
+// Store subscription cleanup
+let queueUnsubscribe = null;
+
 /**
  * Set the audio element reference
  * @param {HTMLAudioElement} audio - The audio element
@@ -41,8 +45,8 @@ export function setAudioElement(audio) {
 export function setTrack(track) {
   console.log('[Player Store] setTrack called', track?.title);
   
-  if (!track) {
-    console.log('[Player Store] No track provided');
+  if (!track || typeof track !== 'object') {
+    console.log('[Player Store] No valid track provided');
     return;
   }
   
@@ -53,17 +57,21 @@ export function setTrack(track) {
   
   if (audioElement && browser) {
     const filePath = track.path || track.filePath;
-    if (filePath) {
-      // Use electronAPI if available, otherwise use direct path
-      if (window.electronAPI) {
-        audioElement.src = window.electronAPI.toFileUrl(filePath);
-      } else {
-        audioElement.src = filePath;
+    if (filePath && typeof filePath === 'string' && filePath.trim()) {
+      try {
+        // Use electronAPI if available, otherwise use direct path
+        if (window.electronAPI && typeof window.electronAPI.toFileUrl === 'function') {
+          audioElement.src = window.electronAPI.toFileUrl(filePath);
+        } else {
+          audioElement.src = filePath;
+        }
+        console.log('[Player Store] Audio src set to:', audioElement.src);
+        audioElement.load();
+      } catch (err) {
+        console.error('[Player Store] Error setting audio src:', err);
       }
-      console.log('[Player Store] Audio src set to:', audioElement.src);
-      audioElement.load();
     } else {
-      console.error('[Player Store] No file path in track:', track);
+      console.error('[Player Store] No valid file path in track:', track);
     }
   } else {
     console.warn('[Player Store] No audio element or not in browser');
@@ -76,14 +84,8 @@ export function setTrack(track) {
 export function play() {
   console.log('[Player Store] play called');
   
-  if (!audioElement) {
-    console.warn('[Player Store] No audio element, cannot play');
-    return;
-  }
-  
-  // Check if we have a source
-  if (!audioElement.src) {
-    console.warn('[Player Store] No audio source, cannot play');
+  if (!audioElement || !audioElement.src) {
+    console.warn('[Player Store] No audio element or source, cannot play');
     return;
   }
   
@@ -181,42 +183,56 @@ export function handleTrackEnded() {
   }
 }
 
-// Subscribe to queue changes - only reload when currentIndex changes, not when queue array changes
+// Subscribe to queue changes - single subscription to prevent double-firing
 if (browser) {
-  // Subscribe to both queue and currentIndex
-  let currentQueue = [];
-  
-  queue.subscribe(q => {
-    currentQueue = q;
-    // Small delay to ensure state is updated
-    setTimeout(() => checkForTrackChange(), 10);
-  });
-  
-  currentIndex.subscribe(idx => {
-    setTimeout(() => checkForTrackChange(), 10);
-  });
-  
-  function checkForTrackChange() {
+  queueUnsubscribe = queue.subscribe(q => {
     const idx = get(currentIndex);
-    const q = get(queue);
-    
-    console.log('[Player Store] checkForTrackChange:', { idx, queueLength: q.length, previousIndex });
-    
-    // Only change track if the index changed AND there's a valid track at that index
-    if (idx >= 0 && idx < q.length && idx !== previousIndex) {
+    if (idx >= 0 && idx < q.length) {
       const newTrack = q[idx];
       if (newTrack) {
-        console.log('[Player Store] Queue index changed to', idx, ', loading:', newTrack.title);
-        previousIndex = idx;
-        
-        // Check if this is a different track
         const current = get(currentTrack);
+        // Only update if track actually changed
         if (!current || (current.path !== newTrack.path && current.id !== newTrack.id)) {
+          previousIndex = idx;
           setTrack(newTrack);
-          // Small delay to ensure track is loaded before playing
-          setTimeout(() => play(), 100);
+          if (get(isPlaying)) {
+            setTimeout(() => play(), 100);
+          }
         }
       }
     }
+  });
+  
+  // Also subscribe to currentIndex changes for next/previous buttons
+  currentIndex.subscribe(idx => {
+    const q = get(queue);
+    if (idx >= 0 && idx < q.length && idx !== previousIndex) {
+      const newTrack = q[idx];
+      if (newTrack) {
+        console.log('[Player Store] CurrentIndex changed to', idx, ', loading:', newTrack.title);
+        previousIndex = idx;
+        setTrack(newTrack);
+        // Always start playback when currentIndex changes (for auto-advance)
+        setTimeout(() => play(), 100);
+      }
+    }
+  });
+  
+  // Listen for auto-play events from queue to avoid circular dependency
+  window.addEventListener('queue:autoPlay', (event) => {
+    const { track } = event.detail;
+    console.log('[Player Store] Auto-play event received for:', track?.title);
+    setTrack(track);
+    play();
+  });
+}
+
+/**
+ * Cleanup store subscriptions
+ */
+export function cleanup() {
+  if (queueUnsubscribe) {
+    queueUnsubscribe();
+    queueUnsubscribe = null;
   }
 }

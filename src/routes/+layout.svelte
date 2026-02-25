@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import Player from '$lib/components/Player.svelte';
   import { loadFromDB } from '$lib/stores/tracks.js';
-  import { uiMode, toggleMode, initModeSync } from '$lib/stores/ui.js';
+  import { uiMode, initModeSync } from '$lib/stores/ui.js';
+  import { toggleModeWithSync } from '$lib/utils/modeToggle.js';
   import { initTheme } from '$lib/stores/theme.js';
   
   onMount(async () => {
@@ -32,12 +33,8 @@
   });
   
   function handleModeToggle() {
-    const newMode = $uiMode === 'full' ? 'mini' : 'full';
-    toggleMode();
-    // Send to Electron main process
-    if (typeof window !== 'undefined' && window.uiAPI) {
-      window.uiAPI.setMode(newMode);
-    }
+    // Use shared mode toggle utility
+    toggleModeWithSync();
   }
 
   function handleMinimize() {
