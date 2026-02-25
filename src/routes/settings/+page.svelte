@@ -263,6 +263,19 @@
       </div>
     </div>
   </div>
+
+  <div class="card mt-4">
+    <div class="card-body">
+      <h5 class="card-title">Library Maintenance</h5>
+      <p class="text-muted">Manage your music library.</p>
+      <div class="mb-3">
+        <a href="/duplicates" class="btn btn-warning">
+          Manage Duplicates
+        </a>
+      </div>
+      <p class="text-muted small">Find and remove duplicate tracks from your library.</p>
+    </div>
+  </div>
   
   <div class="card mt-4">
     <div class="card-body">

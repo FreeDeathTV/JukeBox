@@ -622,4 +622,87 @@ ipcMain.handle('metadata:skip', async (event, trackId) => {
   }
 });
 
-console.log('[IPC] All IPC handlers registered');
+// IPC Channel: duplicates:detect
+ipcMain.handle('duplicates:detect', async () => {
+  console.log('[IPC] duplicates:detect called');
+  try {
+    const duplicateDetector = require('./duplicateDetector.cjs');
+    const groups = await duplicateDetector.detectDuplicates();
+    return { success: true, groups };
+  } catch (err) {
+    console.error('[IPC] duplicates:detect error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// IPC Channel: duplicates:delete
+ipcMain.handle('duplicates:delete', async (event, trackIds) => {
+  console.log('[IPC] duplicates:delete called for', trackIds.length, 'tracks');
+  try {
+    const duplicateDetector = require('./duplicateDetector.cjs');
+    const result = duplicateDetector.deleteTracks(trackIds);
+    return result;
+  } catch (err) {
+    console.error('[IPC] duplicates:delete error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// IPC Channel: duplicates:markNotDuplicate
+ipcMain.handle('duplicates:markNotDuplicate', async (event, groupId) => {
+  console.log('[IPC] duplicates:markNotDuplicate called for group:', groupId);
+  return { success: true };
+});
+
+// IPC Channel: playlist:random - Generate a random playlist based on duration
+ipcMain.handle('playlist:random', async (event, durationMinutes) => {
+  console.log('[IPC] playlist:random called with duration:', durationMinutes, 'minutes');
+  
+  try {
+    const allTracks = database.getAllTracks();
+    
+    // Filter tracks that have valid duration
+    const tracksWithDuration = allTracks.filter(track => track.duration && track.duration > 0);
+    
+    console.log('[IPC] Total tracks:', allTracks.length, 'Tracks with duration:', tracksWithDuration.length);
+    
+    if (tracksWithDuration.length === 0) {
+      return { success: false, error: 'No tracks with duration found' };
+    }
+    
+    // Fisher-Yates shuffle
+    const shuffled = [...tracksWithDuration];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    // Accumulate tracks until we reach the target duration
+    const targetSeconds = durationMinutes * 60;
+    const selectedTracks = [];
+    let totalDuration = 0;
+    
+    for (const track of shuffled) {
+      selectedTracks.push(track);
+      totalDuration += track.duration;
+      
+      // Stop once we've met or exceeded the target
+      if (totalDuration >= targetSeconds) {
+        break;
+      }
+    }
+    
+    console.log('[IPC] Generated random playlist:', selectedTracks.length, 'tracks,', totalDuration.toFixed(0), 'seconds');
+    
+    return {
+      success: true,
+      tracks: selectedTracks,
+      totalDuration: totalDuration,
+      targetDuration: targetSeconds
+    };
+  } catch (err) {
+    console.error('[IPC] Error generating random playlist:', err);
+    return { success: false, error: err.message };
+  }
+});
+

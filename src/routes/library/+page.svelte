@@ -5,13 +5,16 @@
   import { currentTrack, isPlaying, setTrack, play } from '$lib/stores/player.js';
   import { queue, clear, add, playNow, addToQueue } from '$lib/stores/queue.js';
   import SearchBar from '$lib/components/SearchBar.svelte';
-  import TrackList from '$lib/components/TrackList.svelte';
 
   let trackCount = 0;
   let displayedTracks = [];
   let searchValue = '';
   let currentGenre = '';
   let currentYear = '';
+  
+  // Multi-select state
+  let selectedTracks = new Set();
+  let isMultiSelectMode = false;
 
   const genres = ['Rock', 'Dance', 'Reggae', 'Blues', 'Pop', 'Hip-Hop', 'Electronic'];
   const decades = ['1960s', '1970s', '1980s', '1990s', '2000s', '2010s', '2020s'];
@@ -59,6 +62,12 @@
 
   // Handle track click - play immediately if queue is empty, otherwise add to queue
   function handleTrackClick(track) {
+    // If in multi-select mode, toggle selection instead of playing
+    if (isMultiSelectMode) {
+      toggleTrackSelection(track.id);
+      return;
+    }
+    
     console.log('[Library] Track clicked:', track.title);
     console.log('[Library] Track path:', track.path);
     console.log('[Library] Track ID:', track.id);
@@ -81,6 +90,98 @@
       console.log('[Library] Queue has tracks, adding to queue');
       addToQueue(track, true);
     }
+  }
+
+  // Toggle track selection for multi-select
+  function toggleTrackSelection(trackId) {
+    if (selectedTracks.has(trackId)) {
+      selectedTracks.delete(trackId);
+    } else {
+      selectedTracks.add(trackId);
+    }
+    selectedTracks = selectedTracks; // trigger reactivity
+  }
+
+  // Select all visible tracks
+  function selectAll() {
+    displayedTracks.forEach(track => selectedTracks.add(track.id));
+    selectedTracks = selectedTracks;
+  }
+
+  // Deselect all tracks
+  function selectNone() {
+    selectedTracks.clear();
+    selectedTracks = selectedTracks;
+  }
+
+  // Toggle multi-select mode
+  function toggleMultiSelectMode() {
+    isMultiSelectMode = !isMultiSelectMode;
+    if (!isMultiSelectMode) {
+      selectNone();
+    }
+  }
+
+  // Add selected tracks to player queue
+  // PLAYER QUEUE FIX: Only auto-start if player is stopped AND playlist is empty
+  function addSelectedToQueue() {
+    const selectedArray = displayedTracks.filter(t => selectedTracks.has(t.id));
+    const q = get(queue);
+    const isQueueEmpty = q.length === 0;
+    const isCurrentlyPlaying = get(isPlaying);
+    
+    if (selectedArray.length === 0) return;
+    
+    console.log('[Library] Adding', selectedArray.length, 'tracks to queue, queue empty:', isQueueEmpty, 'playing:', isCurrentlyPlaying);
+    
+    // If queue is empty AND player is stopped, play immediately
+    // If queue has tracks or player is playing, add without auto-playing
+    if (isQueueEmpty && !isCurrentlyPlaying) {
+      // Queue is empty and player is stopped - play immediately
+      playNow(selectedArray[0]);
+      setTimeout(() => {
+        setTrack(selectedArray[0]);
+        play();
+      }, 50);
+      
+      // Add remaining tracks to queue (without auto-playing)
+      if (selectedArray.length > 1) {
+        for (let i = 1; i < selectedArray.length; i++) {
+          addToQueue(selectedArray[i], false);
+        }
+      }
+    } else {
+      // Queue has tracks or player is playing - add all without auto-playing
+      selectedArray.forEach(track => {
+        addToQueue(track, false);
+      });
+    }
+    
+    // Exit multi-select mode after adding
+    selectNone();
+    isMultiSelectMode = false;
+  }
+
+  // Clickable metadata handlers
+  function handleArtistClick(artist) {
+    if (artist && artist !== 'Unknown Artist') {
+      searchValue = `artist:"${artist}"`;
+      searchQuery.set(searchValue);
+    }
+  }
+
+  function handleAlbumClick(album) {
+    if (album && album !== 'Unknown Album') {
+      searchValue = `album:"${album}"`;
+      searchQuery.set(searchValue);
+    }
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds) return '--:--';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
   onDestroy(() => {
@@ -121,6 +222,32 @@
       <button class="btn btn-sm btn-outline-danger" on:click={handleReset}>
         Reset
       </button>
+      
+      <!-- Multi-select controls -->
+      <div class="ms-3">
+        <button 
+          class="btn btn-sm {isMultiSelectMode ? 'btn-warning' : 'btn-outline-primary'}"
+          on:click={toggleMultiSelectMode}
+        >
+          {isMultiSelectMode ? 'Cancel Multi-Select' : 'Multi-Select'}
+        </button>
+        
+        {#if isMultiSelectMode}
+          <button class="btn btn-sm btn-outline-secondary ms-1" on:click={selectAll}>
+            Select All
+          </button>
+          <button class="btn btn-sm btn-outline-secondary ms-1" on:click={selectNone}>
+            Select None
+          </button>
+          <button 
+            class="btn btn-sm btn-success ms-1" 
+            on:click={addSelectedToQueue}
+            disabled={selectedTracks.size === 0}
+          >
+            Add Selected to Player ({selectedTracks.size})
+          </button>
+        {/if}
+      </div>
     </div>
   </div>
   
@@ -132,7 +259,82 @@
         {#if currentGenre} in {currentGenre}{/if}
         {#if currentYear} from {currentYear}{/if}
       </p>
-      <TrackList tracks={displayedTracks} on:play={(e) => handleTrackClick(e.detail)} />
+      
+      <!-- Track List with Multi-select -->
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              {#if isMultiSelectMode}
+                <th style="width: 40px;">✓</th>
+              {/if}
+              <th>#</th>
+              <th>Title</th>
+              <th>Artist</th>
+              <th>Album</th>
+              <th>Duration</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each displayedTracks as track, index}
+              <tr class:table-primary={selectedTracks.has(track.id)}>
+                {#if isMultiSelectMode}
+                  <td>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedTracks.has(track.id)}
+                      on:change={() => toggleTrackSelection(track.id)}
+                    />
+                  </td>
+                {/if}
+                <td>{index + 1}</td>
+                <td>
+                  <button class="btn btn-link p-0 text-start" on:click={() => handleTrackClick(track)}>
+                    {track.title || 'Unknown'}
+                  </button>
+                </td>
+                <td>
+                  <button 
+                    class="btn btn-link p-0 text-decoration-none text-primary" 
+                    on:click={() => handleArtistClick(track.artist)}
+                    title="Search for artist"
+                  >
+                    {track.artist || 'Unknown Artist'}
+                  </button>
+                </td>
+                <td>
+                  <button 
+                    class="btn btn-link p-0 text-decoration-none text-primary" 
+                    on:click={() => handleAlbumClick(track.album)}
+                    title="Search for album"
+                  >
+                    {track.album || 'Unknown Album'}
+                  </button>
+                </td>
+                <td>{formatDuration(track.duration)}</td>
+                <td>
+                  <button 
+                    class="btn btn-sm btn-outline-primary" 
+                    on:click={() => handleTrackClick(track)}
+                    title="Play"
+                  >
+                    ▶
+                  </button>
+                  <button 
+                    class="btn btn-sm btn-outline-secondary ms-1" 
+                    on:click={() => addToQueue(track, false)}
+                    title="Add to Queue"
+                    disabled={isMultiSelectMode}
+                  >
+                    +
+                  </button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
     {:else}
       <div class="alert alert-info">
         <p>Your library is empty.</p>
@@ -160,5 +362,6 @@
   .filter-row {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
   }
 </style>

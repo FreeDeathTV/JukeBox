@@ -90,8 +90,9 @@ export async function saveToDB(tracksArray) {
 
 /**
  * Search and filter tracks by query, genre, and year
+ * Full-text search across title, artist, album, genre, and searchKey
  * @param {Array} tracksArray - Array of track objects
- * @param {string} query - Search query
+ * @param {string} query - Search query (can include prefixes like artist:, album:, genre:)
  * @param {string} genre - Genre filter
  * @param {string} year - Year filter (decade)
  * @returns {Array} - Filtered tracks
@@ -99,12 +100,53 @@ export async function saveToDB(tracksArray) {
 export function searchAndFilter(tracksArray, query, genre, year) {
   let result = tracksArray;
 
-  // Apply search query
+  // Apply search query with full-text search across all fields
   if (query && query.trim()) {
-    const normalizedQuery = normalizeForSearch(query);
-    result = result.filter(track => {
-      return track.searchKey && track.searchKey.includes(normalizedQuery);
-    });
+    const normalizedQuery = query.trim();
+    
+    // Check for prefixed searches (artist:, album:, genre:)
+    const artistMatch = normalizedQuery.match(/^artist:"([^"]+)"$/i);
+    const albumMatch = normalizedQuery.match(/^album:"([^"]+)"$/i);
+    const genreMatch = normalizedQuery.match(/^genre:"([^"]+)"$/i);
+    
+    if (artistMatch) {
+      // Search only in artist field
+      const searchTerm = normalizeForSearch(artistMatch[1]);
+      result = result.filter(track => {
+        const trackArtist = normalizeForSearch(track.artist || '');
+        return trackArtist.includes(searchTerm);
+      });
+    } else if (albumMatch) {
+      // Search only in album field
+      const searchTerm = normalizeForSearch(albumMatch[1]);
+      result = result.filter(track => {
+        const trackAlbum = normalizeForSearch(track.album || '');
+        return trackAlbum.includes(searchTerm);
+      });
+    } else if (genreMatch) {
+      // Search only in genre field
+      const searchTerm = normalizeForSearch(genreMatch[1]);
+      result = result.filter(track => {
+        const trackGenre = normalizeForSearch(track.genre || '');
+        return trackGenre.includes(searchTerm);
+      });
+    } else {
+      // Full-text search across title, artist, album, genre, and searchKey
+      const searchTerm = normalizeForSearch(normalizedQuery);
+      result = result.filter(track => {
+        const title = normalizeForSearch(track.title || '');
+        const artist = normalizeForSearch(track.artist || '');
+        const album = normalizeForSearch(track.album || '');
+        const trackGenre = normalizeForSearch(track.genre || '');
+        const searchKey = track.searchKey || '';
+        
+        return title.includes(searchTerm) || 
+               artist.includes(searchTerm) || 
+               album.includes(searchTerm) || 
+               trackGenre.includes(searchTerm) ||
+               searchKey.includes(searchTerm);
+      });
+    }
   }
 
   // Apply genre filter

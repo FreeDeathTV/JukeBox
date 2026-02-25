@@ -149,4 +149,16 @@ contextBridge.exposeInMainWorld('scanAPI', {
   }
 });
 
+// Expose Duplicates API to renderer
+contextBridge.exposeInMainWorld('duplicatesAPI', {
+  // Detect duplicate tracks
+  detect: () => ipcRenderer.invoke('duplicates:detect'),
+  
+  // Delete selected duplicate tracks
+  delete: (trackIds) => ipcRenderer.invoke('duplicates:delete', trackIds),
+  
+  // Mark group as not duplicates
+  markNotDuplicate: (groupId) => ipcRenderer.invoke('duplicates:markNotDuplicate', groupId)
+});
+
 console.log('[Preload] Context bridge exposed to renderer');

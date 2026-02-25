@@ -3,6 +3,12 @@
 		"src/routes/+layout.js",
 		"src/routes/+layout.js"
 	],
+	"/duplicates": [
+		"src/routes/+layout.js"
+	],
+	"/duplicates/review": [
+		"src/routes/+layout.js"
+	],
 	"/library": [
 		"src/routes/+layout.js"
 	],

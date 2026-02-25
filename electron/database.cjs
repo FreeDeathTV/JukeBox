@@ -292,6 +292,30 @@ function getUnidentifiedCount() {
   return result.count;
 }
 
+/**
+ * Delete tracks by IDs
+ * @param {Array} trackIds - Array of track IDs to delete
+ */
+function deleteTracksByIds(trackIds) {
+  if (!db) {
+    initDatabase();
+  }
+  
+  if (!trackIds || trackIds.length === 0) {
+    console.log('[DB] No track IDs provided for deletion');
+    return;
+  }
+  
+  console.log('[DB] Deleting tracks:', trackIds.length);
+  
+  // Use placeholders for the IN clause
+  const placeholders = trackIds.map(() => '?').join(',');
+  const stmt = db.prepare(`DELETE FROM tracks WHERE id IN (${placeholders})`);
+  stmt.run(...trackIds);
+  
+  console.log('[DB] Deleted', trackIds.length, 'tracks');
+}
+
 module.exports = {
   initDatabase,
   getAllTracks,
@@ -303,5 +327,6 @@ module.exports = {
   updateTrackMetadata,
   getUnidentifiedTracks,
   getTrackById,
-  getUnidentifiedCount
+  getUnidentifiedCount,
+  deleteTracksByIds
 };
