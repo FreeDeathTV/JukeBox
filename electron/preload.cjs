@@ -161,4 +161,67 @@ contextBridge.exposeInMainWorld('duplicatesAPI', {
   markNotDuplicate: (groupId) => ipcRenderer.invoke('duplicates:markNotDuplicate', groupId)
 });
 
+// Expose Queue API to renderer
+contextBridge.exposeInMainWorld('queueAPI', {
+  // Add track to queue
+  add: (track) => ipcRenderer.invoke('queue:add', track),
+  
+  // Add multiple tracks to queue
+  addMany: (tracks) => ipcRenderer.invoke('queue:addMany', tracks),
+  
+  // Remove track from queue by index
+  remove: (index) => ipcRenderer.invoke('queue:remove', index),
+  
+  // Clear entire queue
+  clear: () => ipcRenderer.invoke('queue:clear'),
+  
+  // Play track now (replace queue)
+  playNow: (track) => ipcRenderer.invoke('queue:playNow', track),
+  
+  // Add to queue with auto-play option
+  addToQueue: (track, autoPlay) => ipcRenderer.invoke('queue:addToQueue', track, autoPlay),
+  
+  // Replace queue and play
+  replaceAndPlay: (tracks, startIndex) => ipcRenderer.invoke('queue:replaceAndPlay', tracks, startIndex),
+  
+  // Get queue length
+  getLength: () => ipcRenderer.invoke('queue:getLength')
+});
+
+// Expose Player API to renderer
+contextBridge.exposeInMainWorld('playerAPI', {
+  // Set current track
+  setTrack: (track) => ipcRenderer.invoke('player:setTrack', track),
+  
+  // Play current track
+  play: () => ipcRenderer.invoke('player:play'),
+  
+  // Pause playback
+  pause: () => ipcRenderer.invoke('player:pause'),
+  
+  // Toggle play/pause
+  toggle: () => ipcRenderer.invoke('player:toggle'),
+  
+  // Stop playback
+  stop: () => ipcRenderer.invoke('player:stop'),
+  
+  // Set volume (0-100)
+  setVolume: (value) => ipcRenderer.invoke('player:setVolume', value),
+  
+  // Set progress (0-1)
+  setProgress: (value) => ipcRenderer.invoke('player:setProgress', value),
+  
+  // Check if playing
+  isPlaying: () => ipcRenderer.invoke('player:isPlaying'),
+  
+  // Get current track
+  getCurrentTrack: () => ipcRenderer.invoke('player:getCurrentTrack')
+});
+
+// Expose Playlist API to renderer
+contextBridge.exposeInMainWorld('playlistAPI', {
+  // Generate random playlist
+  random: (durationMinutes) => ipcRenderer.invoke('playlist:random', durationMinutes)
+});
+
 console.log('[Preload] Context bridge exposed to renderer');

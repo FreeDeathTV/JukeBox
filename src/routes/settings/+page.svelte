@@ -17,6 +17,7 @@
   let unidentifiedCount = 0;
   let guessableCount = 0;
 
+
   onMount(() => {
     isElectron = typeof window !== 'undefined' && window.electronAPI !== undefined;
     console.log('[Settings] Running in Electron:', isElectron);
@@ -182,6 +183,7 @@
     } catch (err) { console.error(err); alert('Error'); }
     finally { spotifyEnriching = false; }
   }
+
 </script>
 
 <div class="settings-page">
@@ -210,6 +212,7 @@
       <button class="btn btn-primary" on:click={saveSettings} disabled={saving}>{saving ? 'Saving...' : 'Save Settings'}</button>
     </div>
   </div>
+
 
   <div class="card mt-4">
     <div class="card-body">
@@ -284,3 +287,24 @@
     </div>
   </div>
 </div>
+
+<style>
+  .settings-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1050;
+  }
+  
+  .modal.show {
+    display: block;
+  }
+</style>
