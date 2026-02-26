@@ -6,9 +6,27 @@ let spotifyToken = null;
 let tokenExpiry = null;
 let lastRequestTime = 0;
 
-// Spotify API credentials
-const SPOTIFY_CLIENT_ID = '4eebcb072cb84eee9c53ee653b33a57b';
-const SPOTIFY_CLIENT_SECRET = 'fec9e255221b42fb9d02f43749836958';
+// Load Spotify credentials from settings file
+const credentialsPath = path.join(__dirname, 'settings', 'spotify_credentials.json');
+let SPOTIFY_CLIENT_ID = '';
+let SPOTIFY_CLIENT_SECRET = '';
+
+try {
+  if (fs.existsSync(credentialsPath)) {
+    const credentialsData = fs.readFileSync(credentialsPath, 'utf8');
+    const credentials = JSON.parse(credentialsData);
+    SPOTIFY_CLIENT_ID = credentials.clientId || '';
+    SPOTIFY_CLIENT_SECRET = credentials.clientSecret || '';
+    
+    if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
+      console.warn('[Spotify] Credentials not found in spotify_credentials.json. Please add your credentials.');
+    }
+  } else {
+    console.warn('[Spotify] Credentials file not found at:', credentialsPath);
+  }
+} catch (e) {
+  console.error('[Spotify] Error loading credentials:', e.message);
+}
 
 /**
  * Sleep for a specified number of milliseconds

@@ -32,7 +32,6 @@ declare module '$env/static/private' {
 	export const ChocolateyLastPathUpdate: string;
 	export const CHROME_CRASHPAD_PIPE_NAME: string;
 	export const CLAUDE_CODE_SSE_PORT: string;
-	export const CLINE_ACTIVE: string;
 	export const COLOR: string;
 	export const COLORTERM: string;
 	export const CommonProgramFiles: string;
@@ -42,6 +41,7 @@ declare module '$env/static/private' {
 	export const DriverData: string;
 	export const EDITOR: string;
 	export const EFC_12248_1592913036: string;
+	export const EFC_12248_344590478: string;
 	export const FORCE_COLOR: string;
 	export const GIT_ASKPASS: string;
 	export const HOME: string;
@@ -150,7 +150,6 @@ declare module '$env/dynamic/private' {
 		ChocolateyLastPathUpdate: string;
 		CHROME_CRASHPAD_PIPE_NAME: string;
 		CLAUDE_CODE_SSE_PORT: string;
-		CLINE_ACTIVE: string;
 		COLOR: string;
 		COLORTERM: string;
 		CommonProgramFiles: string;
@@ -160,6 +159,7 @@ declare module '$env/dynamic/private' {
 		DriverData: string;
 		EDITOR: string;
 		EFC_12248_1592913036: string;
+		EFC_12248_344590478: string;
 		FORCE_COLOR: string;
 		GIT_ASKPASS: string;
 		HOME: string;
